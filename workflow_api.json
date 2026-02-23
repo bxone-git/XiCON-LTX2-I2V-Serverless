@@ -9,18 +9,9 @@
       "title": "Load Image"
     }
   },
-  "107": {
-    "inputs": {
-      "image": ["98", 0]
-    },
-    "class_type": "GetImageSizeAndCount",
-    "_meta": {
-      "title": "Get Image Size And Count"
-    }
-  },
   "102": {
     "inputs": {
-      "input": ["107", 0],
+      "input": ["98", 0],
       "mode": "scale dimensions",
       "width": 0,
       "height": 0,
