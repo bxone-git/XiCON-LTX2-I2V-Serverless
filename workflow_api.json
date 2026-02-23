@@ -9,20 +9,6 @@
       "title": "Load Image"
     }
   },
-  "102": {
-    "inputs": {
-      "input": ["98", 0],
-      "mode": "scale dimensions",
-      "width": 0,
-      "height": 0,
-      "position": "center",
-      "interpolation": "lanczos"
-    },
-    "class_type": "ResizeImageMaskNode",
-    "_meta": {
-      "title": "Resize Image"
-    }
-  },
   "92:1": {
     "inputs": {
       "ckpt_name": "ltx-2-19b-dev-fp8.safetensors"
@@ -85,7 +71,7 @@
   },
   "92:105": {
     "inputs": {
-      "image": ["102", 0]
+      "image": ["98", 0]
     },
     "class_type": "GetImageSize",
     "_meta": {
@@ -159,8 +145,8 @@
   },
   "92:106": {
     "inputs": {
-      "images": ["102", 0],
-      "max_size": 1536
+      "images": ["98", 0],
+      "longer_edge": 1536
     },
     "class_type": "ResizeImagesByLongerEdge",
     "_meta": {
