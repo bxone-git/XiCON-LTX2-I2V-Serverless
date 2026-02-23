@@ -10,7 +10,8 @@ ENV PIP_NO_CACHE_DIR=1
 
 # System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.10 python3-pip python3.10-venv \
+    python3.10 python3-pip python3.10-venv python3.10-dev \
+    gcc \
     git curl wget \
     libgl1-mesa-glx libglib2.0-0 \
     ffmpeg libsndfile1 \
