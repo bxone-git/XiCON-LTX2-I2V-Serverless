@@ -156,7 +156,7 @@
   "92:99": {
     "inputs": {
       "image": ["92:106", 0],
-      "noise_augmentation": 33
+      "img_compression": 35
     },
     "class_type": "LTXVPreprocess",
     "_meta": {
@@ -168,8 +168,8 @@
       "vae": ["92:1", 2],
       "image": ["92:99", 0],
       "latent": ["92:43", 0],
-      "strength": 1,
-      "add_noise": false
+      "strength": 1.0,
+      "bypass": false
     },
     "class_type": "LTXVImgToVideoInplace",
     "_meta": {
@@ -288,8 +288,8 @@
       "vae": ["92:1", 2],
       "image": ["92:99", 0],
       "latent": ["92:84", 0],
-      "strength": 1,
-      "add_noise": false
+      "strength": 1.0,
+      "bypass": false
     },
     "class_type": "LTXVImgToVideoInplace",
     "_meta": {
