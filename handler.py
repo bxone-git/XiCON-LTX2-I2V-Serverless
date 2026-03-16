@@ -165,6 +165,33 @@ def connect_websocket_with_retry(max_attempts=36, retry_delay=5):
                 raise RuntimeError(f"Failed to connect to WebSocket after {max_attempts} attempts")
 
 
+def crop_and_resize_image(image_path, target_width, target_height):
+    """Center-crop image to target aspect ratio, then resize to target dimensions."""
+    from PIL import Image
+
+    img = Image.open(image_path)
+    src_w, src_h = img.size
+    target_ratio = target_width / target_height
+    src_ratio = src_w / src_h
+
+    # Center-crop to target ratio
+    if src_ratio > target_ratio:
+        # Image is wider than target - crop width
+        new_w = int(src_h * target_ratio)
+        left = (src_w - new_w) // 2
+        img = img.crop((left, 0, left + new_w, src_h))
+    elif src_ratio < target_ratio:
+        # Image is taller than target - crop height
+        new_h = int(src_w / target_ratio)
+        top = (src_h - new_h) // 2
+        img = img.crop((0, top, src_w, top + new_h))
+
+    # Resize to target dimensions
+    img = img.resize((target_width, target_height), Image.LANCZOS)
+    img.save(image_path)
+    logger.info(f"Image resized to {target_width}x{target_height}")
+
+
 def save_input_image(image_input):
     """Save image input to ComfyUI input directory. Returns just the filename."""
     os.makedirs(COMFY_INPUT_DIR, exist_ok=True)
@@ -205,6 +232,51 @@ def save_input_image(image_input):
     return filename
 
 
+def extract_first_frame(video_data):
+    """Extract first frame from video as JPEG using ffmpeg."""
+    import subprocess
+    import tempfile
+
+    tmp_video_path = None
+    tmp_thumb_path = None
+
+    try:
+        # Save video to temp file
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_video:
+            tmp_video.write(video_data)
+            tmp_video_path = tmp_video.name
+
+        # Output path for thumbnail
+        tmp_thumb_path = tmp_video_path.replace('.mp4', '_thumb.jpg')
+
+        # Extract first frame using ffmpeg
+        result = subprocess.run(
+            ['ffmpeg', '-i', tmp_video_path, '-vframes', '1', '-q:v', '2', '-y', tmp_thumb_path],
+            capture_output=True, timeout=30
+        )
+
+        if result.returncode != 0:
+            logger.warning(f"ffmpeg thumbnail extraction failed: {result.stderr.decode()[:200]}")
+            return None
+
+        # Read thumbnail
+        with open(tmp_thumb_path, 'rb') as f:
+            thumb_data = f.read()
+
+        logger.info(f"Thumbnail extracted: {len(thumb_data)} bytes")
+        return base64.b64encode(thumb_data).decode('utf-8')
+    except Exception as e:
+        logger.warning(f"Thumbnail extraction failed: {e}")
+        return None
+    finally:
+        # Cleanup temp files
+        for path in [tmp_video_path, tmp_thumb_path]:
+            try:
+                os.unlink(path)
+            except Exception:
+                pass
+
+
 def handler(job):
     """Main handler for LTX-2 Image-to-Video workflow (2-stage pipeline with 92:XX subgraph nodes)."""
     task_id = str(uuid.uuid4())
@@ -219,6 +291,8 @@ def handler(job):
         negative_prompt = job_input.get("negative_prompt")
         frame_count = job_input.get("frame_count", 121)
         seed = job_input.get("seed", 0)
+        width = job_input.get("width")
+        height = job_input.get("height")
 
         if not image_input:
             return {"error": "Missing required parameter: image"}
@@ -235,6 +309,11 @@ def handler(job):
 
         # Save input image to ComfyUI input directory
         image_filename = save_input_image(image_input)
+
+        # Resize image if width/height specified
+        if width and height:
+            image_path = os.path.join(COMFY_INPUT_DIR, image_filename)
+            crop_and_resize_image(image_path, width, height)
 
         # Load workflow
         workflow = load_workflow(WORKFLOW_PATH)
@@ -285,14 +364,20 @@ def handler(job):
 
         result_b64 = base64.b64encode(video_data).decode('utf-8')
 
+        # Extract first frame as thumbnail
+        thumbnail_b64 = extract_first_frame(video_data)
+
         logger.info(f"Task {task_id}: Complete")
 
         return {
             "video": result_b64,
+            "thumbnail": thumbnail_b64,
             "seed": seed,
             "prompt_id": prompt_id,
             "frame_count": frame_count,
-            "duration_seconds": round(duration_seconds, 2)
+            "duration_seconds": round(duration_seconds, 2),
+            "width": width,
+            "height": height,
         }
 
     except Exception as e:
